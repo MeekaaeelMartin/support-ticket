@@ -117,7 +117,7 @@ export function SupportApp() {
 							</div>
 							<div className="chat-input">
 								<div className="input-row">
-									<textarea ref={inputRef} placeholder={!conversationId ? 'Describe your issue...' : (!stop ? 'Type your answer...' : 'Ready to create your ticket')}} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (canSend) primaryAction(); } }} />
+									<textarea ref={inputRef} placeholder={!conversationId ? 'Describe your issue...' : (!stop ? 'Type your answer...' : 'Ready to create your ticket')} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (canSend) primaryAction(); } }} />
 									<button className="btn send-btn" onClick={primaryAction} disabled={!canSend}>{primaryLabel}</button>
 								</div>
 								{submitted && <div className="small" style={{ marginTop: 8 }}>Ticket submitted. We'll be in touch shortly.</div>}
