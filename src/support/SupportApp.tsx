@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { postJSON } from '../lib/api';
 
 type Message = { role: 'user' | 'assistant'; content: string };
@@ -32,8 +32,14 @@ export function SupportApp() {
 	const [busy, setBusy] = useState(false);
 	const [submitted, setSubmitted] = useState(false);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
+	const scrollRef = useRef<HTMLDivElement>(null);
 
 	const title = useMemo(() => 'Support Portal', []);
+
+	useEffect(() => {
+		const el = scrollRef.current;
+		if (el) el.scrollTop = el.scrollHeight;
+	}, [messages]);
 
 	async function start() {
 		if (!input.trim()) return;
@@ -76,6 +82,10 @@ export function SupportApp() {
 		} finally { setBusy(false); }
 	}
 
+	const canSend = input.trim().length > 0 && !busy;
+	const primaryAction = !conversationId ? start : (!stop ? answer : submitTicket);
+	const primaryLabel = !conversationId ? 'Start triage' : (!stop ? 'Send' : 'Create ticket');
+
 	return (
 		<div>
 			<div className="header"><div className="nav"><div className="brand">Tecbot Support</div><div className="badge">24/7 AI Triage</div></div></div>
@@ -84,38 +94,44 @@ export function SupportApp() {
 					<div className="card">
 						<h1 className="h1">{title}</h1>
 						<p className="sub">Tell us what you need. Our AI will clarify details, then we route your ticket to the right team.</p>
-						<div className="row" style={{ alignItems: 'flex-start' }}>
-							<div style={{ flex: 2 }}>
-								<label>Your request</label>
-								<textarea ref={inputRef} rows={5} value={input} onChange={e => setInput(e.target.value)} placeholder="e.g., Please add a banner to the homepage and fix the contact form..." />
+
+						<label>Your email (for updates)</label>
+						<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
+						<div className="small" style={{ marginTop: 6 }}>We use this to send ticket updates.</div>
+
+						<div style={{ height: 16 }} />
+
+						<div className="chat-shell">
+							<div className="chat-header">
+								<div className="small">Chat</div>
+								{category && <span className="badge">{categoryLabel[category]}</span>}
 							</div>
-							<div style={{ flex: 1 }}>
-								<label>Your email (optional)</label>
-								<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
-								<div style={{ marginTop: 8 }} className="small">We use this to send ticket updates.</div>
+							<div ref={scrollRef} className="chat-scroll">
+								{messages.length === 0 && <div className="small">Start by describing your request below.</div>}
+								{messages.map((m, i) => (
+									<div key={i} className="msg">
+										<div className={`avatar ${m.role}`}>{m.role === 'assistant' ? 'AI' : 'U'}</div>
+										<div className={`bubble ${m.role}`}>{m.content}</div>
+									</div>
+								))}
 							</div>
-						</div>
-						<div className="row">
-							{!conversationId ? (
-								<button className="btn" onClick={start} disabled={busy || !input.trim()}>Start triage</button>
-							) : !stop ? (
-								<button className="btn" onClick={answer} disabled={busy || !input.trim()}>Send answer</button>
-							) : (
-								<button className="btn" onClick={submitTicket} disabled={busy || submitted}>Create ticket</button>
-							)}
-							{category && <span className="badge">Category: {categoryLabel[category]}</span>}
+							<div className="chat-input">
+								<div className="input-row">
+									<textarea ref={inputRef} placeholder={!conversationId ? 'Describe your issue...' : (!stop ? 'Type your answer...' : 'Ready to create your ticket')}} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (canSend) primaryAction(); } }} />
+									<button className="btn send-btn" onClick={primaryAction} disabled={!canSend}>{primaryLabel}</button>
+								</div>
+								{submitted && <div className="small" style={{ marginTop: 8 }}>Ticket submitted. We'll be in touch shortly.</div>}
+							</div>
 						</div>
 					</div>
 
 					<div className="card">
-						<h2 style={{ marginTop: 0 }}>Conversation</h2>
-						<div className="chat">
-							{messages.length === 0 && <div className="small">No messages yet. Submit your request to begin.</div>}
-							{messages.map((m, i) => (
-								<div key={i} className={`msg ${m.role}`}>{m.content}</div>
-							))}
-						</div>
-						{submitted && <p className="small">Ticket submitted. We'll be in touch shortly.</p>}
+						<h2 style={{ marginTop: 0 }}>Tips for faster resolution</h2>
+						<ul>
+							<li>Include URLs and screenshots (paste links).</li>
+							<li>Mention urgency or deadlines.</li>
+							<li>Share account names (no passwords).</li>
+						</ul>
 					</div>
 				</div>
 

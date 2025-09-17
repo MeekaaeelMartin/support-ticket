@@ -18,9 +18,15 @@ router.post('/start', async (req, res) => {
 	addMessage(conversation.id, 'user', query);
 	const triage = await classifyAndAsk([{ role: 'user', content: query }]);
 	if (triage.category) updateConversation(conversation.id, { category: triage.category });
+	let assistantText = '';
 	if (triage.followUps.length > 0) {
-		addMessage(conversation.id, 'assistant', triage.followUps.join('\n'));
+		assistantText = triage.followUps.map((q, i) => `${i + 1}. ${q}`).join('\n');
+	} else if (triage.summary) {
+		assistantText = triage.summary;
+	} else {
+		assistantText = 'Thanks! I have enough to create your ticket. Please press "Create ticket" to proceed.';
 	}
+	addMessage(conversation.id, 'assistant', assistantText);
 	res.json({
 		conversationId: conversation.id,
 		category: triage.category,
@@ -46,9 +52,15 @@ router.post('/continue', async (req, res) => {
 	const prior = listMessages(conversationId).map(m => ({ role: m.role, content: m.content }));
 	const triage = await classifyAndAsk(prior as any);
 	if (triage.category) updateConversation(conversationId, { category: triage.category });
+	let assistantText = '';
 	if (triage.followUps.length > 0) {
-		addMessage(conversationId, 'assistant', triage.followUps.join('\n'));
+		assistantText = triage.followUps.map((q, i) => `${i + 1}. ${q}`).join('\n');
+	} else if (triage.summary) {
+		assistantText = triage.summary;
+	} else {
+		assistantText = 'Thanks! I have enough to create your ticket. Please press "Create ticket" to proceed.';
 	}
+	addMessage(conversationId, 'assistant', assistantText);
 	if (triage.stop) updateConversation(conversationId, { status: 'completed' });
 	res.json({
 		category: triage.category,

@@ -31,18 +31,34 @@ Classify each client request into exactly one category:
 When you need clarification, propose up to 3 concise follow-up questions. Stop asking follow ups when you are confident you can create a useful internal ticket.
 `;
 
+function textCategory(text: string): Category {
+	const t = text.toLowerCase();
+	if (/(website|wordpress|page|landing|form|banner|homepage|cms|web)/.test(t)) return 'website';
+	if (/(email|mailbox|outlook|mx\b|spf\b|dkim\b|imap|smtp)/.test(t)) return 'email';
+	if (/(social|instagram|facebook|tiktok|\bx\b|twitter|linkedin)/.test(t)) return 'social';
+	return 'admin';
+}
+
+function hasSufficientInfo(text: string): boolean {
+	const hasUrl = /https?:\/\//i.test(text);
+	const mentionsUrgency = /(urgent|asap|priority|immediately|deadline|today|tomorrow)/i.test(text);
+	const hasAccount = /(username|account|mailbox|domain)/i.test(text);
+	const hasConcreteTask = /(fix|add|remove|setup|configure|update|install)/i.test(text);
+	const signals = [hasUrl, mentionsUrgency, hasAccount, hasConcreteTask].filter(Boolean).length;
+	return signals >= 2;
+}
+
 function heuristicTriage(messages: { role: 'user' | 'assistant' | 'system'; content: string }[]): TriageResponse {
-	const last = messages[messages.length - 1]?.content.toLowerCase() || '';
-	let category: Category = 'admin';
-	if (/(website|wordpress|page|landing|form|banner|homepage)/.test(last)) category = 'website';
-	else if (/(email|mailbox|outlook|mx|spf|dkim)/.test(last)) category = 'email';
-	else if (/(social|instagram|facebook|tiktok|x\b|twitter)/.test(last)) category = 'social';
-	const followUps: string[] = [
+	const convoText = messages.map(m => m.content).join(' \n ');
+	const category = textCategory(convoText);
+	const stop = hasSufficientInfo(convoText) || messages.filter(m => m.role === 'user').length >= 2;
+	const followUps: string[] = stop ? [] : [
 		'What is the impact or urgency of this request?',
 		'Please share any relevant URLs, usernames, or account names (no passwords).',
 		'Is there a deadline or target date for completion?'
 	];
-	return { category, followUps, stop: false };
+	const summary = stop ? 'I have enough details to create your ticket. I will summarize and proceed.' : undefined;
+	return { category, followUps, stop, summary };
 }
 
 export async function classifyAndAsk(messages: { role: 'user' | 'assistant' | 'system'; content: string }[]): Promise<TriageResponse> {
@@ -79,9 +95,5 @@ export async function classifyAndAsk(messages: { role: 'user' | 'assistant' | 's
 }
 
 export function mapCategoryFromText(text: string): Category {
-	const t = text.toLowerCase();
-	if (t.includes('website')) return 'website';
-	if (t.includes('mail') || t.includes('email')) return 'email';
-	if (t.includes('social')) return 'social';
-	return 'admin';
+	return textCategory(text);
 }
