@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { postJSON } from '../lib/api';
+import { API_BASE, postJSON } from '../lib/api';
 
 type Message = { role: 'user' | 'assistant'; content: string };
 
@@ -31,6 +31,7 @@ export function SupportApp() {
 	const [summary, setSummary] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [submitted, setSubmitted] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +45,7 @@ export function SupportApp() {
 	async function start() {
 		if (!input.trim()) return;
 		setBusy(true);
+		setError(null);
 		try {
 			const data = await postJSON<StartResponse>('/api/triage/start', { query: input.trim(), clientEmail: email || undefined });
 			setConversationId(data.conversationId);
@@ -54,12 +56,15 @@ export function SupportApp() {
 			for (const m of data.messages) if (m.role !== 'system') msgs.push({ role: m.role, content: m.content });
 			setMessages(msgs);
 			setInput('');
+		} catch (e) {
+			setError((e as Error).message);
 		} finally { setBusy(false); }
 	}
 
 	async function answer() {
 		if (!conversationId || !input.trim()) return;
 		setBusy(true);
+		setError(null);
 		try {
 			const data = await postJSON<ContinueResponse>('/api/triage/continue', { conversationId, answer: input.trim() });
 			setCategory(data.category);
@@ -70,26 +75,32 @@ export function SupportApp() {
 			setMessages(msgs);
 			setInput('');
 			if (inputRef.current) inputRef.current.focus();
+		} catch (e) {
+			setError((e as Error).message);
 		} finally { setBusy(false); }
 	}
 
 	async function submitTicket() {
 		if (!conversationId || !category) return;
 		setBusy(true);
+		setError(null);
 		try {
 			await postJSON('/api/tickets/submit', { conversationId, category, clientEmail: email || undefined, summary: summary || 'Support request' });
 			setSubmitted(true);
+		} catch (e) {
+			setError((e as Error).message);
 		} finally { setBusy(false); }
 	}
 
 	const canSend = input.trim().length > 0 && !busy;
 	const primaryAction = !conversationId ? start : (!stop ? answer : submitTicket);
-	const primaryLabel = !conversationId ? 'Start triage' : (!stop ? 'Send' : 'Create ticket');
+	const primaryLabel = !conversationId ? 'Start chat' : (!stop ? 'Send' : 'Create ticket');
 
 	return (
 		<div>
 			<div className="header"><div className="nav"><div className="brand">Tecbot Support</div><div className="badge">24/7 AI Triage</div></div></div>
 			<div className="container">
+				{!API_BASE && <div className="card" style={{ marginBottom: 16 }}><div className="small">Warning: VITE_API_BASE is not set. The frontend will call the proxy or same origin.</div></div>}
 				<div className="hero">
 					<div className="card">
 						<h1 className="h1">{title}</h1>
@@ -120,6 +131,7 @@ export function SupportApp() {
 									<textarea ref={inputRef} placeholder={!conversationId ? 'Describe your issue...' : (!stop ? 'Type your answer...' : 'Ready to create your ticket')} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (canSend) primaryAction(); } }} />
 									<button className="btn send-btn" onClick={primaryAction} disabled={!canSend}>{primaryLabel}</button>
 								</div>
+								{error && <div className="small" style={{ marginTop: 8, color: '#b91c1c' }}>{error}</div>}
 								{submitted && <div className="small" style={{ marginTop: 8 }}>Ticket submitted. We'll be in touch shortly.</div>}
 							</div>
 						</div>
