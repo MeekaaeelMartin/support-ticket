@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --watch server --loader ts-node/esm server/index.ts",
+    "dev": "nodemon --watch server --exec tsx server/index.ts",
     "build": "tsc -p . && vite build",
     "start": "node dist/server/index.js",
     "client": "vite"
@@ -36,6 +36,7 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vite": "^7.1.5"
   }
