@@ -1,7 +1,18 @@
-export const API_BASE = import.meta.env.VITE_API_BASE || '';
+export const API_BASE_RAW = import.meta.env.VITE_API_BASE || '';
+const BASE = API_BASE_RAW.replace(/\/+$/, '');
+
+function buildUrl(path: string): string {
+	const p = path.startsWith('/') ? path : `/${path}`;
+	if (!BASE && !import.meta.env.DEV) {
+		throw new Error('Missing VITE_API_BASE in production. Set it to your backend URL.');
+	}
+	return `${BASE}${p}`;
+}
+
+export const API_BASE = BASE;
 
 export async function postJSON<T>(path: string, body: any): Promise<T> {
-	const url = `${API_BASE}${path}`;
+	const url = buildUrl(path);
 	let res: Response;
 	try {
 		res = await fetch(url, {
